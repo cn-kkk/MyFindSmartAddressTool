@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Address</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        #result-json {
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .query-block {
+            border: 1px solid #dee2e6;
+            border-radius: .375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <!-- Tab Buttons -->
+        <ul class="nav nav-tabs" id="queryTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="simple-tab" data-bs-toggle="tab" data-bs-target="#simple-query-pane" type="button" role="tab" aria-controls="simple-query-pane" aria-selected="true">简单查询</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="complex-tab" data-bs-toggle="tab" data-bs-target="#complex-query-pane" type="button" role="tab" aria-controls="complex-query-pane" aria-selected="false">复合查询</button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content pt-4" id="queryTabsContent">
+            <!-- Simple Query Pane -->
+            <div class="tab-pane fade show active" id="simple-query-pane" role="tabpanel" aria-labelledby="simple-tab">
+                <p class="text-muted">根据合约和时间段查询交互地址。</p>
+                <form id="simple-query-form">
+                    <!-- Static HTML for simple form -->
+                </form>
+            </div>
+
+            <!-- Complex Query Pane -->
+            <div class="tab-pane fade" id="complex-query-pane" role="tabpanel" aria-labelledby="complex-tab">
+                <p class="text-muted">根据多个合约和时间段查询交互地址，找出共同的发起方（聪明钱包）。</p>
+                <form id="complex-query-form">
+                    <div class="row mb-3">
+                        <label for="complex-api-key" class="col-sm-2 col-form-label">API Key</label>
+                        <div class="col-sm-10">
+                            <input type="password" class="form-control" id="complex-api-key" placeholder="请输入您的 Etherscan API Key" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="complex-network" class="col-sm-2 col-form-label">网络选择</label>
+                        <div class="col-sm-10">
+                            <select class="form-select" id="complex-network" required>
+                                <option value="56" selected>BNB Smart Chain</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="complex-query-blocks">
+                        <div class="query-block">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">查询条件 1</h6>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-2 col-form-label">合约地址</label>
+                                <div class="col-sm-10">
+                                    <input type="text" class="form-control complex-contract-address" placeholder="请输入合约地址" required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-2 col-form-label">开始时间</label>
+                                <div class="col-sm-10">
+                                    <input type="datetime-local" class="form-control complex-start-time" required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-2 col-form-label">结束时间</label>
+                                <div class="col-sm-10">
+                                    <input type="datetime-local" class="form-control complex-end-time" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="add-query-block" class="btn btn-success mt-2">+ 添加查询条件</button>
+                    <hr>
+                    
+                    <button type="submit" class="btn btn-primary" id="complex-query-button">查询聪明钱包</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Result Display Area -->
+        <div class="mt-5" id="result-container" style="display: none;">
+            <h2 class="mb-3">查询结果</h2>
+            <div id="result-json"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- Final, Cleaned, and Corrected Script ---
+        document.getElementById('simple-query-form').innerHTML = `
+            <div class="row mb-3"><label for="simple-api-key" class="col-sm-2 col-form-label">API Key</label><div class="col-sm-10"><input type="password" class="form-control" id="simple-api-key" placeholder="请输入您的 Etherscan API Key" required></div></div>
+            <div class="row mb-3"><label for="simple-network" class="col-sm-2 col-form-label">网络选择</label><div class="col-sm-10"><select class="form-select" id="simple-network" required><option value="56" selected>BNB Smart Chain</option></select></div></div>
+            <div class="row mb-3"><label for="simple-contract-address" class="col-sm-2 col-form-label">合约地址</label><div class="col-sm-10"><input type="text" class="form-control" id="simple-contract-address" placeholder="请输入合约地址" required></div></div>
+            <div class="row mb-3"><label for="simple-start-time" class="col-sm-2 col-form-label">开始时间</label><div class="col-sm-10"><input type="datetime-local" class="form-control" id="simple-start-time" required></div></div>
+            <div class="row mb-3"><label for="simple-end-time" class="col-sm-2 col-form-label">结束时间</label><div class="col-sm-10"><input type="datetime-local" class="form-control" id="simple-end-time" required></div></div>
+            <div class="row mb-3"><label class="col-sm-2 col-form-label">结果筛选</label><div class="col-sm-10 d-flex align-items-center pt-2"><div class="form-check form-check-inline"><input class="form-check-input simple-filter-checkbox" type="checkbox" id="filter-hash-simple" value="hash" checked><label class="form-check-label" for="filter-hash-simple">hash</label></div><div class="form-check form-check-inline"><input class="form-check-input simple-filter-checkbox" type="checkbox" id="filter-from-simple" value="from" checked><label class="form-check-label" for="filter-from-simple">from</label></div><div class="form-check form-check-inline"><input class="form-check-input simple-filter-checkbox" type="checkbox" id="filter-to-simple" value="to" checked><label class="form-check-label" for="filter-to-simple">to</label></div><div class="form-check form-check-inline"><input class="form-check-input simple-filter-checkbox" type="checkbox" id="filter-functionName-simple" value="functionName" checked><label class="form-check-label" for="filter-functionName-simple">functionName</label></div><div class="form-check form-check-inline"><input class="form-check-input simple-filter-checkbox" type="checkbox" id="filter-timeStamp-simple" value="timeStamp" checked><label class="form-check-label" for="filter-timeStamp-simple">timeStamp</label></div></div></div>
+            <button type="submit" class="btn btn-primary" id="simple-query-button">查询</button>
+        `;
+
+        const API_URL = "https://api.etherscan.io/v2/api";
+
+        async function makeApiRequest(params) {
+            const query = new URLSearchParams(params).toString();
+            const response = await fetch(`${API_URL}?${query}`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (data.status === "0") {
+                if (data.message === "No records found") return [];
+                throw new Error(`API Error: ${data.message} - ${data.result}`);
+            }
+            return data.result;
+        }
+
+        async function getBlockNumberByTimestamp(chainId, apiKey, timestamp) {
+            const params = { chainid: chainId, apikey: apiKey, module: "block", action: "getblocknobytime", timestamp: Math.round(timestamp), closest: "before" };
+            return makeApiRequest(params);
+        }
+
+        document.getElementById('simple-query-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const button = document.getElementById('simple-query-button');
+            const resultContainer = document.getElementById('result-container');
+            const resultJson = document.getElementById('result-json');
+            button.disabled = true;
+            button.textContent = '查询中...';
+            resultContainer.style.display = 'block';
+            resultJson.textContent = '正在查询，请稍候...';
+            try {
+                const apiKey = document.getElementById('simple-api-key').value;
+                const chainId = document.getElementById('simple-network').value;
+                const contractAddress = document.getElementById('simple-contract-address').value;
+                const startTime = new Date(document.getElementById('simple-start-time').value).getTime() / 1000;
+                const endTime = new Date(document.getElementById('simple-end-time').value).getTime() / 1000;
+                if (isNaN(startTime) || isNaN(endTime)) throw new Error("时间格式不正确，请重新选择。");
+                const startBlock = await getBlockNumberByTimestamp(chainId, apiKey, startTime);
+                if (!startBlock) throw new Error("未能获取起始区块号，请检查开始时间。");
+                const endBlock = await getBlockNumberByTimestamp(chainId, apiKey, endTime);
+                if (!endBlock) throw new Error("未能获取结束区块号，请检查结束时间。");
+                const txParams = { module: "account", action: "txlist", address: contractAddress, startblock: startBlock, endblock: endBlock, page: 1, offset: 1000, sort: "asc", chainid: chainId, apikey: apiKey };
+                const transactions = await makeApiRequest(txParams);
+                if (transactions.length === 0) {
+                    resultJson.textContent = "在指定时间范围内没有找到相关交易。";
+                } else {
+                    const selectedFields = Array.from(document.querySelectorAll('.simple-filter-checkbox:checked')).map(cb => cb.value);
+                    let resultsToDisplay;
+
+                    if (selectedFields.length === 0) {
+                        // If no fields are selected, use the original full transaction list
+                        resultsToDisplay = transactions;
+                    } else {
+                        // Otherwise, filter the results
+                        resultsToDisplay = transactions.map(tx => {
+                            const filteredTx = {};
+                            selectedFields.forEach(field => {
+                                if (tx.hasOwnProperty(field)) {
+                                    filteredTx[field] = tx[field];
+                                }
+                            });
+                            return filteredTx;
+                        });
+                    }
+
+                    resultJson.textContent = JSON.stringify(resultsToDisplay, null, 2);
+                }
+            } catch (error) {
+                resultJson.textContent = `查询失败：\n${error.message}`;
+                console.error(error);
+            } finally {
+                button.disabled = false;
+                button.textContent = '查询';
+            }
+        });
+
+        function updateBlockNumbers() {
+            const allBlocks = document.querySelectorAll('#complex-query-blocks .query-block');
+            allBlocks.forEach((block, index) => {
+                const titleElement = block.querySelector('h6');
+                if (titleElement) {
+                    titleElement.textContent = `查询条件 ${index + 1}`;
+                }
+            });
+        }
+
+        document.getElementById('add-query-block').addEventListener('click', function() {
+            const container = document.getElementById('complex-query-blocks');
+            const newBlock = document.createElement('div');
+            newBlock.className = 'query-block';
+            newBlock.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="mb-0">查询条件</h6><button type="button" class="btn btn-danger btn-sm remove-query-block">移除</button></div>
+                <div class="row mb-3"><label class="col-sm-2 col-form-label">合约地址</label><div class="col-sm-10"><input type="text" class="form-control complex-contract-address" placeholder="请输入合约地址" required></div></div>
+                <div class="row mb-3"><label class="col-sm-2 col-form-label">开始时间</label><div class="col-sm-10"><input type="datetime-local" class="form-control complex-start-time" required></div></div>
+                <div class="row mb-3"><label class="col-sm-2 col-form-label">结束时间</label><div class="col-sm-10"><input type="datetime-local" class="form-control complex-end-time" required></div></div>
+            `;
+            container.appendChild(newBlock);
+            updateBlockNumbers();
+        });
+
+        document.getElementById('complex-query-blocks').addEventListener('click', function(event) {
+            if (event.target.classList.contains('remove-query-block')) {
+                event.target.closest('.query-block').remove();
+                updateBlockNumbers();
+            }
+        });
+
+        document.getElementById('complex-query-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const button = document.getElementById('complex-query-button');
+            const resultContainer = document.getElementById('result-container');
+            const resultJson = document.getElementById('result-json');
+            button.disabled = true;
+            button.textContent = '查询中...';
+            resultContainer.style.display = 'block';
+            resultJson.textContent = '正在执行复合查询，请稍候...';
+            let intersectionSet = null;
+            try {
+                const apiKey = document.getElementById('complex-api-key').value;
+                const chainId = document.getElementById('complex-network').value;
+                const queryBlocks = document.querySelectorAll('#complex-query-blocks .query-block');
+                for (let i = 0; i < queryBlocks.length; i++) {
+                    const block = queryBlocks[i];
+                    resultJson.textContent = `正在查询第 ${i + 1} / ${queryBlocks.length} 个条件...`;
+                    const contractAddress = block.querySelector('.complex-contract-address').value;
+                    const startTime = new Date(block.querySelector('.complex-start-time').value).getTime() / 1000;
+                    const endTime = new Date(block.querySelector('.complex-end-time').value).getTime() / 1000;
+                    if (!contractAddress || isNaN(startTime) || isNaN(endTime)) throw new Error(`第 ${i + 1} 个查询条件的输入不完整或格式不正确。`);
+                    const startBlock = await getBlockNumberByTimestamp(chainId, apiKey, startTime);
+                    if (!startBlock) throw new Error(`第 ${i + 1} 个条件：未能获取起始区块号。`);
+                    const endBlock = await getBlockNumberByTimestamp(chainId, apiKey, endTime);
+                    if (!endBlock) throw new Error(`第 ${i + 1} 个条件：未能获取结束区块号。`);
+                    const txParams = { module: "account", action: "txlist", address: contractAddress, startblock: startBlock, endblock: endBlock, page: 1, offset: 1000, sort: "asc", chainid: chainId, apikey: apiKey };
+                    const transactions = await makeApiRequest(txParams);
+                    const currentFromSet = new Set(transactions.map(tx => tx.from));
+                    if (intersectionSet === null) {
+                        intersectionSet = currentFromSet;
+                    } else {
+                        intersectionSet = new Set([...intersectionSet].filter(address => currentFromSet.has(address)));
+                    }
+                    if (intersectionSet.size === 0) {
+                        resultJson.textContent = `聪明钱包地址为空。`;
+                        return;
+                    }
+                    if (i < queryBlocks.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    }
+                }
+                if (intersectionSet === null || intersectionSet.size === 0) {
+                    resultJson.textContent = "聪明钱包地址为空";
+                } else {
+                    const finalResult = Array.from(intersectionSet);
+                    resultJson.textContent = JSON.stringify(finalResult, null, 2);
+                }
+            } catch (error) {
+                resultJson.textContent = `查询失败：\n${error.message}`;
+                console.error(error);
+            } finally {
+                button.disabled = false;
+                button.textContent = '查询聪明钱包';
+            }
+        });
+    </script>
+</body>
+</html>
